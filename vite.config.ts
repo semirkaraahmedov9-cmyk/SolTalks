@@ -9,6 +9,10 @@ const REPO_NAME = 'SolTalks';
 export default defineConfig({
   base: `/${REPO_NAME}/`,
   plugins: [react()],
+  // The TTS worker loads the engine with a dynamic import, which needs ES modules.
+  worker: { format: 'es' },
+  // Pre-bundling breaks onnxruntime-web's own loading of its .wasm file in dev.
+  optimizeDeps: { exclude: ['onnxruntime-web'] },
   test: {
     // Our tests cover pure logic only, so no browser emulation is needed.
     environment: 'node',

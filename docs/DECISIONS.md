@@ -35,3 +35,34 @@ Important choices, why they were made, and what else was considered. Newest at t
 ### EU emblem: English version as a placeholder
 - **Decision:** the footer shows `public/brand/eu-funded-en.png` ("Funded by the European Union") with the Bulgarian alt text „Финансирано от Европейския съюз“.
 - **Reason:** the Bulgarian emblem was not available yet. Replace with the official Bulgarian version (from the EU visual-identity download page) and confirm "Funded" vs "Co-funded" wording against the grant agreement.
+
+### Voice: Piper "Dimitar" (bg_BG-dimitar-medium)
+- **Decision:** launch with `bg_BG-dimitar-medium` from `rhasspy/piper-voices`, pinned to commit `ae9d8352…`.
+- **Facts:** the only Bulgarian Piper voice; one male speaker, "medium" quality, 22,050 Hz, 63.2 MB. Dataset CC0, fine-tuned from a CC0 base voice; the repository is MIT-licensed. Its config uses Piper 1.5 features (`vowel_clusters`), so the model card says "requires Piper 1.5 or higher".
+- **Why not cloud voices (Azure, Google, ElevenLabs):** they send the user's text to a company's server (breaks our privacy promise), cost money per character, need a secret API key that a static site cannot hide, and their voices cannot be redistributed.
+- **Other open Bulgarian voice found:** `vits-coqui-bg-cv` (sherpa-onnx, 67 MB, trained on crowd-sourced Common Voice data). Not tested yet; can be compared later if Dimitar's quality is not good enough.
+
+### Browser speech engine: our own small pipeline
+- **Decision:** no ready-made Piper browser library. Instead:
+  - `onnxruntime-web` (Microsoft, MIT) runs the voice model, single-threaded WebAssembly (`numThreads = 1`), so no SharedArrayBuffer / COOP/COEP headers are needed.
+  - `@diffusionstudio/piper-wasm` (MIT package; contains eSpeak-ng, GPL-3.0) turns Bulgarian text into phonemes. It includes `bg_dict` and the Bulgarian rules.
+  - Our code (`src/tts/`) ports Piper 1.5's phoneme handling: vowel-cluster merging, BOS/PAD/EOS layout, per-sentence synthesis and peak normalisation (see `phonemeIds.ts`, tested).
+  - All engine files are served from our own site (Vite copies them); only the voice comes from Hugging Face (CORS allowed).
+- **Alternatives rejected:**
+  - `sherpa-onnx` npm package: Node.js only; a browser build would require compiling it ourselves with Emscripten.
+  - `piper-tts-web` (Poket-Jony): a 46 MB main bundle with unrelated features.
+  - `@mintplex-labs/piper-tts-web` and `vits-web`: download parts from three external CDNs, old ONNX Runtime (1.18), their voice list has no Bulgarian voice, and no vowel-cluster support.
+  - `phonemizer` (xenova): small, but English only (tested).
+- **Licence note:** eSpeak-ng is GPL-3.0. Our own code stays MIT; the published site as a whole includes a GPL component, which is fine for an open-source project. Credited in `docs/CREDITS.md`.
+
+### Phase 1 measurements
+First-visit download: voice 63.2 MB + eSpeak data 18.1 MB + engine 14.8 MB (≈3.9 MB compressed over the network) + small files. Afterwards everything comes from the browser cache.
+
+Test text: the default sentence on `#/test` (12.7 s of audio).
+
+| Device | Voice download | Prepare voice | Generate speech | Speed | Click → sound (first / later) |
+|---|---|---|---|---|---|
+| Semir's PC (Edge, headless) | 6 s | 1.8 s | 2.8 s | 4.5× real time | 10.7 s / 2.7 s |
+| Semir's phone | _pending_ | | | | |
+
+Pronunciation notes: numbers are read correctly („дванадесет“, „триста четиридесет и пет“), „№“ → „номер“. Abbreviations are read literally („ул.“ → „ул“) and the full stop of an abbreviation is treated as a sentence end. Both are fixed in Phase 2 (`normalize.ts`, `split.ts`).

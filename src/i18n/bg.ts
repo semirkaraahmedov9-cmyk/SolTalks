@@ -43,6 +43,50 @@ export const bg = {
   volunteer: { title: 'Стани глас' },
   about: { title: 'За проекта' },
 
+  // Temporary Phase 1 page (#/test); removed once the real converter exists.
+  test: {
+    title: 'Технически тест на гласа',
+    intro:
+      'Тази страница е временна. На нея проверяваме дали българският глас работи на Вашето устройство и колко бързо.',
+    downloadNote:
+      'При първото натискане се изтеглят около 97 MB (гласът и програмата за реч). След това те се пазят на устройството Ви и не се изтеглят отново.',
+    textLabel: 'Текст за прочитане',
+    defaultText:
+      'Здравейте! Аз съм гласът на проекта „Солидарността говори!“ от село Чепинци. В библиотеката ни има 12 книги и над 345 страници. Пишете ни на ул. „Иван Вазов“ № 5.',
+    settingsHeading: 'Настройки на гласа',
+    noiseScale: 'Вариация на гласа',
+    noiseScaleHelp: 'По-ниско – по-равен и по-стабилен глас.',
+    lengthScale: 'Темпо',
+    lengthScaleHelp: 'Над 1 – по-бавно, под 1 – по-бързо.',
+    noiseW: 'Вариация на ритъма',
+    noiseWHelp: 'По-ниско – по-равномерен ритъм.',
+    resetSettings: 'Върни стандартните настройки',
+    speak: 'Говори',
+    working: 'Моля, изчакайте…',
+    statusDownloading: (percent: number, loadedMb: string, totalMb: string) =>
+      `Изтегляне на гласа: ${percent}% (${loadedMb} от ${totalMb} MB)`,
+    statusLoading: 'Подготовка на гласа…',
+    statusSynthesizing: 'Създаване на речта…',
+    statusDone: 'Готово. Натиснете бутона за възпроизвеждане в плейъра.',
+    statusError: (message: string) => `Нещо се обърка: ${message}`,
+    playerLabel: 'Резултат',
+    downloadWav: 'Изтегли като WAV',
+    resultsHeading: 'Измервания',
+    voiceSize: 'Размер на гласа',
+    fromCache: '(взет от паметта на браузъра)',
+    downloadTime: 'Изтегляне на гласа',
+    loadTime: 'Подготовка на гласа',
+    synthTime: 'Създаване на речта',
+    audioLength: 'Дължина на звука',
+    speed: 'Скорост',
+    speedValue: (times: string) => `${times} пъти по-бързо от реалното време`,
+    totalTime: 'Общо време до готов звук',
+    seconds: (value: string) => `${value} с`,
+    megabytes: (value: string) => `${value} MB`,
+    phonemesHeading: 'Фонеми (за проверка на произношението)',
+    missingPhonemes: (list: string) => `Непознати фонеми: ${list}`,
+  },
+
   notFound: {
     title: 'Страницата не е намерена',
     text: 'Тази страница не съществува или е преместена.',

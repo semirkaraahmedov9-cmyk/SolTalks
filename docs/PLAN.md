@@ -27,9 +27,9 @@ Goal: an empty but working website that runs on Semir's PC and deploys to GitHub
 
 Goal: choose the browser TTS library and confirm the Bulgarian voice really works before building the UI around it.
 
-- [ ] Look up the current options for running Piper voices in the browser (for example `sherpa-onnx` WebAssembly TTS, `piper-tts-web` / `piper-wasm`, `vits-web`). Check: is it maintained, does it support Bulgarian phonemisation (espeak-ng `bg`), does it work **without** SharedArrayBuffer, its licence, and its download size.
-- [ ] Find the Bulgarian "Dimitar" voice in `rhasspy/piper-voices` on Hugging Face (`bg` folder; read `voices.json` there for exact file names and quality levels). Note its licence in `docs/CREDITS.md`.
-- [ ] Build a tiny test page (temporary route `/test`) that loads the voice, speaks one Bulgarian sentence, and plays it.
+- [x] Look up the current options for running Piper voices in the browser (for example `sherpa-onnx` WebAssembly TTS, `piper-tts-web` / `piper-wasm`, `vits-web`). Check: is it maintained, does it support Bulgarian phonemisation (espeak-ng `bg`), does it work **without** SharedArrayBuffer, its licence, and its download size.
+- [x] Find the Bulgarian "Dimitar" voice in `rhasspy/piper-voices` on Hugging Face (`bg` folder; read `voices.json` there for exact file names and quality levels). Note its licence in `docs/CREDITS.md`.
+- [x] Build a tiny test page (temporary route `/test`) that loads the voice, speaks one Bulgarian sentence, and plays it.
 - [ ] Test the sentence: „Здравейте! Аз съм гласът на проекта „Солидарността говори!“ от село Чепинци. Днес е 12 ноември 2026 г.“ Check pronunciation, especially numbers and the date.
 - [ ] Measure: model download size, time to first sound, speed (seconds of audio per second) on PC. Ask Semir to open the deployed `/test` page on his phone and report how long it takes.
 - [ ] Write the choice and the measurements into `docs/DECISIONS.md`.

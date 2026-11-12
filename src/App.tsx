@@ -6,6 +6,7 @@ import { LibraryPage } from './pages/LibraryPage';
 import { VolunteerPage } from './pages/VolunteerPage';
 import { AboutPage } from './pages/AboutPage';
 import { NotFoundPage } from './pages/NotFoundPage';
+import { TestPage } from './pages/TestPage';
 
 export function App() {
   return (
@@ -16,6 +17,8 @@ export function App() {
         <Route path="library" element={<LibraryPage />} />
         <Route path="volunteer" element={<VolunteerPage />} />
         <Route path="about" element={<AboutPage />} />
+        {/* Temporary Phase 1 voice test; not linked in the navigation. */}
+        <Route path="test" element={<TestPage />} />
         <Route path="*" element={<NotFoundPage />} />
       </Route>
     </Routes>

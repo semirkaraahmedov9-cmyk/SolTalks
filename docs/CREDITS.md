@@ -4,7 +4,11 @@ The source code of this project is under the [MIT licence](../LICENSE). Everythi
 
 ## Voices
 
-_None yet. The Bulgarian Piper voice "Dimitar" is added in Phase 1, with its exact licence from the model card._
+| Voice | Made by | Licence | Source |
+|---|---|---|---|
+| Dimitar (`bg_BG-dimitar-medium`), Bulgarian, male | Open Home Foundation (Piper project) | Dataset CC0; fine-tuned from a CC0 base voice; repository MIT | [rhasspy/piper-voices on Hugging Face](https://huggingface.co/rhasspy/piper-voices/tree/main/bg/bg_BG/dimitar/medium) |
+
+The voice file is not stored in this repository. Visitors' browsers download it from Hugging Face.
 
 ## Fonts
 
@@ -22,6 +26,10 @@ _None yet. The Bulgarian Piper voice "Dimitar" is added in Phase 1, with its exa
 | [TypeScript](https://www.typescriptlang.org) | Apache 2.0 | Type checking |
 | [Vitest](https://vitest.dev) | MIT | Automated tests |
 | [Fontsource](https://fontsource.org) | MIT (packaging) | Self-hosted font files |
+| [ONNX Runtime Web](https://onnxruntime.ai) | MIT | Runs the voice model in the browser |
+| [@diffusionstudio/piper-wasm](https://github.com/diffusion-studio/piper-wasm) | MIT (build) | WebAssembly build of Piper's phonemizer |
+| [eSpeak NG](https://github.com/espeak-ng/espeak-ng) (inside piper-wasm, [rhasspy fork](https://github.com/rhasspy/espeak-ng)) | **GPL-3.0** | Turns Bulgarian text into phonemes. Source code: see the links. |
+| [Piper](https://github.com/OHF-Voice/piper1-gpl) | GPL-3.0 | Our phoneme handling in `src/tts/phonemeIds.ts` follows Piper 1.5's logic |
 
 ## Logos and emblems
 
