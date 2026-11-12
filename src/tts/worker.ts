@@ -2,13 +2,16 @@
 // Speech generation runs here, off the main thread, so the page never freezes.
 import * as ort from 'onnxruntime-web/wasm';
 import ortWasmUrl from 'onnxruntime-web/ort-wasm-simd-threaded.wasm?url';
-import { downloadWithCache } from './download';
-import type { Timings, WorkerRequest, WorkerResponse } from './messages';
+import { normalizeText } from '../text/normalize';
+import { splitText } from '../text/split';
+import { createAudioSink, MIME_TYPES, type AudioFormat } from './audioSink';
+import { downloadWithCache, NetworkError } from './download';
+import type { EngineErrorCode, WorkerRequest, WorkerResponse } from './messages';
 import { initPhonemizer, phonemizeSentences } from './phonemizer';
 import { mergeVowelClusters, phonemesToIds } from './phonemeIds';
 import { defaultSettings, type PiperVoiceConfig, type SynthesisSettings } from './piperConfig';
-import { TEST_VOICE } from './testVoice';
-import { concatAudio, encodeWav, normalizePeak } from './wav';
+import type { VoiceInfo } from './voices';
+import { floatToInt16, normalizePeak, silence } from './wav';
 
 declare const self: DedicatedWorkerGlobalScope;
 
@@ -17,130 +20,168 @@ declare const self: DedicatedWorkerGlobalScope;
 ort.env.wasm.numThreads = 1;
 ort.env.wasm.wasmPaths = { wasm: ortWasmUrl };
 
+/** Sentences phonemized per eSpeak run; each run re-creates eSpeak, so batch them. */
+const PHONEMIZE_BATCH = 50;
+
 interface LoadedVoice {
   session: ort.InferenceSession;
   config: PiperVoiceConfig;
-  voiceBytes: number;
+  /** True when the model came from the browser cache (no download needed). */
   fromCache: boolean;
-  downloadMs: number;
-  loadMs: number;
 }
 
-let voicePromise: Promise<LoadedVoice> | undefined;
+const voices = new Map<string, Promise<LoadedVoice>>();
+const cancelled = new Set<number>();
+
+class CancelledError extends Error {}
+class EmptyTextError extends Error {}
 
 function post(message: WorkerResponse, transfer: Transferable[] = []) {
   self.postMessage(message, transfer);
 }
 
-async function loadVoice(): Promise<LoadedVoice> {
-  const downloadStart = performance.now();
-  const [model, configResponse] = await Promise.all([
-    downloadWithCache(TEST_VOICE.modelUrl, TEST_VOICE.modelBytes, ({ loaded, total }) =>
-      post({ type: 'progress', stage: 'download', loaded, total }),
+async function loadVoice(voice: VoiceInfo, requestId: number): Promise<LoadedVoice> {
+  const [model, config] = await Promise.all([
+    downloadWithCache(voice.modelUrl, voice.sizeMb * 1e6, ({ loaded, total }) =>
+      post({ type: 'downloadProgress', id: requestId, loaded, total }),
     ),
-    fetch(TEST_VOICE.configUrl),
+    downloadWithCache(voice.configUrl, 0),
   ]);
-  const config = (await configResponse.json()) as PiperVoiceConfig;
-  const downloadMs = model.fromCache ? 0 : performance.now() - downloadStart;
 
-  post({ type: 'progress', stage: 'load' });
-  const loadStart = performance.now();
   const [session] = await Promise.all([
     ort.InferenceSession.create(new Uint8Array(model.data), { executionProviders: ['wasm'] }),
     initPhonemizer(),
   ]);
-
   return {
     session,
-    config,
-    voiceBytes: model.data.byteLength,
+    config: JSON.parse(new TextDecoder().decode(config.data)) as PiperVoiceConfig,
     fromCache: model.fromCache,
-    downloadMs,
-    loadMs: performance.now() - loadStart,
   };
 }
 
-// Temporary simple sentence split for the Phase 1 test (proper one in Phase 2).
-function splitSentences(text: string): string[] {
-  return text
-    .split(/(?<=[.!?…])\s+/)
-    .map((s) => s.trim())
-    .filter(Boolean);
+function getVoice(voice: VoiceInfo, requestId: number): Promise<LoadedVoice> {
+  let loading = voices.get(voice.id);
+  if (!loading) {
+    loading = loadVoice(voice, requestId);
+    voices.set(voice.id, loading);
+    loading.catch(() => voices.delete(voice.id)); // allow a retry after a failure
+  }
+  return loading;
 }
 
-async function synthesize(voice: LoadedVoice, text: string, settings: SynthesisSettings) {
+// Lets queued messages (such as "cancel") arrive between pieces of work.
+const yieldToMessages = () => new Promise((resolve) => setTimeout(resolve, 0));
+
+async function speakPhonemes(voice: LoadedVoice, phonemes: string[], settings: SynthesisSettings) {
   const { session, config } = voice;
-  const sentences = splitSentences(text);
-  const phonemized = await phonemizeSentences(sentences, config.espeak.voice);
+  const merged = mergeVowelClusters(phonemes, config.vowel_clusters);
+  const { ids } = phonemesToIds(merged, config.phoneme_id_map);
 
-  const parts: Float32Array[] = [];
-  const allPhonemes: string[] = [];
-  const missing = new Set<string>();
-
-  for (const raw of phonemized) {
-    const phonemes = mergeVowelClusters(raw, config.vowel_clusters);
-    const { ids, missing: miss } = phonemesToIds(phonemes, config.phoneme_id_map);
-    miss.forEach((m) => missing.add(m));
-    allPhonemes.push(phonemes.join(''));
-
-    const feeds: Record<string, ort.Tensor> = {
-      input: new ort.Tensor('int64', BigInt64Array.from(ids, (id) => BigInt(id)), [1, ids.length]),
-      input_lengths: new ort.Tensor('int64', BigInt64Array.from([BigInt(ids.length)]), [1]),
-      scales: new ort.Tensor(
-        'float32',
-        Float32Array.from([settings.noiseScale, settings.lengthScale, settings.noiseW]),
-        [3],
-      ),
-    };
-    if (session.inputNames.includes('sid')) {
-      feeds.sid = new ort.Tensor('int64', BigInt64Array.from([0n]), [1]);
-    }
-
-    const output = await session.run(feeds);
-    const audio = output[session.outputNames[0]].data as Float32Array;
-    parts.push(normalizePeak(audio));
+  const feeds: Record<string, ort.Tensor> = {
+    input: new ort.Tensor('int64', BigInt64Array.from(ids, (id) => BigInt(id)), [1, ids.length]),
+    input_lengths: new ort.Tensor('int64', BigInt64Array.from([BigInt(ids.length)]), [1]),
+    scales: new ort.Tensor(
+      'float32',
+      Float32Array.from([settings.noiseScale, settings.lengthScale, settings.noiseW]),
+      [3],
+    ),
+  };
+  if (session.inputNames.includes('sid')) {
+    feeds.sid = new ort.Tensor('int64', BigInt64Array.from([0n]), [1]);
   }
 
-  return { audio: concatAudio(parts), phonemes: allPhonemes, missing: [...missing] };
+  const output = await session.run(feeds);
+  return floatToInt16(normalizePeak(output[session.outputNames[0]].data as Float32Array));
+}
+
+async function synthesize(
+  requestId: number,
+  info: VoiceInfo,
+  text: string,
+  format: AudioFormat,
+  settings?: SynthesisSettings,
+) {
+  const chunks = splitText(normalizeText(text));
+  if (chunks.length === 0) throw new EmptyTextError('No text to speak');
+
+  const voice = await getVoice(info, requestId);
+  const scales = settings ?? defaultSettings(voice.config);
+  const sampleRate = voice.config.audio.sample_rate;
+  const totalChars = chunks.reduce((sum, c) => sum + c.text.length, 0);
+
+  const start = performance.now();
+  const sink = createAudioSink(format, sampleRate);
+  let doneChars = 0;
+
+  for (let b = 0; b < chunks.length; b += PHONEMIZE_BATCH) {
+    const batch = chunks.slice(b, b + PHONEMIZE_BATCH);
+    const phonemized = await phonemizeSentences(batch.map((c) => c.text), voice.config.espeak.voice);
+
+    for (let i = 0; i < batch.length; i++) {
+      await yieldToMessages();
+      if (cancelled.has(requestId)) throw new CancelledError();
+
+      if (phonemized[i].length > 0) sink.add(await speakPhonemes(voice, phonemized[i], scales));
+      if (batch[i].pauseAfterMs > 0) sink.add(silence(batch[i].pauseAfterMs, sampleRate));
+
+      doneChars += batch[i].text.length;
+      post({ type: 'synthProgress', id: requestId, fraction: doneChars / totalChars });
+    }
+  }
+
+  const audio = sink.finish();
+  const synthMs = performance.now() - start;
+  post(
+    {
+      type: 'done',
+      id: requestId,
+      audio,
+      mimeType: MIME_TYPES[format],
+      durationSeconds: sink.sampleCount / sampleRate,
+      chunkCount: chunks.length,
+      synthMs,
+    },
+    [audio],
+  );
+}
+
+function errorCode(error: unknown): EngineErrorCode {
+  if (error instanceof NetworkError) return 'network';
+  if (error instanceof EmptyTextError) return 'empty-text';
+  return 'unknown';
 }
 
 self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
   const request = event.data;
-  if (request.type !== 'synthesize') return;
-
   try {
-    voicePromise ??= loadVoice();
-    const voice = await voicePromise;
-    const settings = request.settings ?? defaultSettings(voice.config);
-
-    post({ type: 'progress', stage: 'synthesize' });
-    const synthStart = performance.now();
-    const { audio, phonemes, missing } = await synthesize(voice, request.text, settings);
-    const synthMs = performance.now() - synthStart;
-
-    const sampleRate = voice.config.audio.sample_rate;
-    const wav = encodeWav(audio, sampleRate);
-    const timings: Timings = { downloadMs: voice.downloadMs, loadMs: voice.loadMs, synthMs };
-    // Download and load times only count for the first request.
-    voice.downloadMs = 0;
-    voice.loadMs = 0;
-
-    post(
-      {
-        type: 'result',
-        wav,
-        audioSeconds: audio.length / sampleRate,
-        timings,
-        voiceBytes: voice.voiceBytes,
-        voiceFromCache: voice.fromCache,
-        defaults: defaultSettings(voice.config),
-        phonemes,
-        missingPhonemes: missing,
-      },
-      [wav],
-    );
+    switch (request.type) {
+      case 'load': {
+        const voice = await getVoice(request.voice, request.id);
+        post({ type: 'loaded', id: request.id, fromCache: voice.fromCache });
+        break;
+      }
+      case 'synthesize':
+        await synthesize(request.id, request.voice, request.text, request.format, request.settings);
+        break;
+      case 'cancel':
+        cancelled.add(request.id);
+        break;
+      case 'unload':
+        for (const loading of voices.values()) {
+          loading.then((v) => v.session.release()).catch(() => {});
+        }
+        voices.clear();
+        post({ type: 'unloaded', id: request.id });
+        break;
+    }
   } catch (error) {
-    voicePromise = undefined; // allow a retry, e.g. after a network error
-    post({ type: 'error', message: error instanceof Error ? error.message : String(error) });
+    if (error instanceof CancelledError) {
+      post({ type: 'cancelled', id: request.id });
+    } else {
+      const message = error instanceof Error ? error.message : String(error);
+      post({ type: 'error', id: request.id, code: errorCode(error), message });
+    }
+  } finally {
+    if (request.type === 'synthesize') cancelled.delete(request.id);
   }
 };

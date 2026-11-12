@@ -1,1 +1,13 @@
-[]
+[
+  {
+    "id": "bg_BG-dimitar-medium",
+    "name": "Димитър",
+    "gender": "male",
+    "language": "bg",
+    "modelUrl": "https://huggingface.co/rhasspy/piper-voices/resolve/ae9d8352b73c1b1750748843e753a504b00e05b0/bg/bg_BG/dimitar/medium/bg_BG-dimitar-medium.onnx",
+    "configUrl": "https://huggingface.co/rhasspy/piper-voices/resolve/ae9d8352b73c1b1750748843e753a504b00e05b0/bg/bg_BG/dimitar/medium/bg_BG-dimitar-medium.onnx.json",
+    "sizeMb": 63.2,
+    "license": "CC0-1.0 (dataset), MIT (repository)",
+    "credit": "Open Home Foundation – Piper"
+  }
+]

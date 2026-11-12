@@ -1,7 +1,8 @@
 // Downloads with progress, keeping a copy in the browser's Cache API so a
 // large voice file is only downloaded once per device.
 
-const CACHE_NAME = 'soltalks-voices-v1';
+/** Shared with engine.ts, which deletes this cache on request. */
+export const VOICE_CACHE_NAME = 'soltalks-voices-v1';
 
 export interface DownloadProgress {
   loaded: number;
@@ -13,10 +14,12 @@ export interface DownloadResult {
   fromCache: boolean;
 }
 
+export class NetworkError extends Error {}
+
 export async function downloadWithCache(
   url: string,
   expectedBytes: number,
-  onProgress: (p: DownloadProgress) => void,
+  onProgress?: (p: DownloadProgress) => void,
 ): Promise<DownloadResult> {
   const cache = await openCache();
   const cached = await cache?.match(url);
@@ -24,9 +27,14 @@ export async function downloadWithCache(
     return { data: await cached.arrayBuffer(), fromCache: true };
   }
 
-  const response = await fetch(url);
+  let response: Response;
+  try {
+    response = await fetch(url);
+  } catch (error) {
+    throw new NetworkError(error instanceof Error ? error.message : String(error));
+  }
   if (!response.ok || !response.body) {
-    throw new Error(`HTTP ${response.status} for ${url}`);
+    throw new NetworkError(`HTTP ${response.status} for ${url}`);
   }
 
   const total = Number(response.headers.get('content-length')) || expectedBytes;
@@ -34,12 +42,16 @@ export async function downloadWithCache(
   const chunks: Uint8Array[] = [];
   let loaded = 0;
 
-  for (;;) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    chunks.push(value);
-    loaded += value.length;
-    onProgress({ loaded, total });
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      chunks.push(value);
+      loaded += value.length;
+      onProgress?.({ loaded, total: Math.max(total, loaded) });
+    }
+  } catch (error) {
+    throw new NetworkError(error instanceof Error ? error.message : String(error));
   }
 
   const data = new Uint8Array(loaded);
@@ -58,9 +70,9 @@ export async function downloadWithCache(
 }
 
 // The Cache API is missing on plain http:// pages (except localhost).
-async function openCache(): Promise<Cache | undefined> {
+export async function openCache(): Promise<Cache | undefined> {
   try {
-    return 'caches' in self ? await caches.open(CACHE_NAME) : undefined;
+    return 'caches' in globalThis ? await caches.open(VOICE_CACHE_NAME) : undefined;
   } catch {
     return undefined;
   }

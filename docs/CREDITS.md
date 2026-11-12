@@ -29,6 +29,7 @@ The voice file is not stored in this repository. Visitors' browsers download it 
 | [ONNX Runtime Web](https://onnxruntime.ai) | MIT | Runs the voice model in the browser |
 | [@diffusionstudio/piper-wasm](https://github.com/diffusion-studio/piper-wasm) | MIT (build) | WebAssembly build of Piper's phonemizer |
 | [eSpeak NG](https://github.com/espeak-ng/espeak-ng) (inside piper-wasm, [rhasspy fork](https://github.com/rhasspy/espeak-ng)) | **GPL-3.0** | Turns Bulgarian text into phonemes. Source code: see the links. |
+| [@breezystack/lamejs](https://github.com/breezystack/lamejs) (based on [LAME](https://lame.sourceforge.io)) | LGPL-3.0 | Creates MP3 files in the browser |
 | [Piper](https://github.com/OHF-Voice/piper1-gpl) | GPL-3.0 | Our phoneme handling in `src/tts/phonemeIds.ts` follows Piper 1.5's logic |
 
 ## Logos and emblems

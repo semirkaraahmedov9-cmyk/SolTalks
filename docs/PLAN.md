@@ -30,9 +30,9 @@ Goal: choose the browser TTS library and confirm the Bulgarian voice really work
 - [x] Look up the current options for running Piper voices in the browser (for example `sherpa-onnx` WebAssembly TTS, `piper-tts-web` / `piper-wasm`, `vits-web`). Check: is it maintained, does it support Bulgarian phonemisation (espeak-ng `bg`), does it work **without** SharedArrayBuffer, its licence, and its download size.
 - [x] Find the Bulgarian "Dimitar" voice in `rhasspy/piper-voices` on Hugging Face (`bg` folder; read `voices.json` there for exact file names and quality levels). Note its licence in `docs/CREDITS.md`.
 - [x] Build a tiny test page (temporary route `/test`) that loads the voice, speaks one Bulgarian sentence, and plays it.
-- [ ] Test the sentence: „Здравейте! Аз съм гласът на проекта „Солидарността говори!“ от село Чепинци. Днес е 12 ноември 2026 г.“ Check pronunciation, especially numbers and the date.
-- [ ] Measure: model download size, time to first sound, speed (seconds of audio per second) on PC. Ask Semir to open the deployed `/test` page on his phone and report how long it takes.
-- [ ] Write the choice and the measurements into `docs/DECISIONS.md`.
+- [x] Test the sentence: „Здравейте! Аз съм гласът на проекта „Солидарността говори!“ от село Чепинци. Днес е 12 ноември 2026 г.“ Check pronunciation, especially numbers and the date.
+- [x] Measure: model download size, time to first sound, speed (seconds of audio per second) on PC. Ask Semir to open the deployed `/test` page on his phone and report how long it takes.
+- [x] Write the choice and the measurements into `docs/DECISIONS.md`.
 
 **Done when:** Semir hears a clear Bulgarian sentence on both his PC and his phone, from the live GitHub Pages site.
 
@@ -42,14 +42,14 @@ Goal: choose the browser TTS library and confirm the Bulgarian voice really work
 
 Goal: a clean, reusable module that turns text into audio without freezing the page.
 
-- [ ] `src/tts/worker.ts` — Web Worker that loads a voice and generates audio.
-- [ ] `src/tts/engine.ts` — simple API for the rest of the app: `loadVoice(id, onProgress)`, `synthesize(text, { onProgress, signal })` returning audio, and cancelling.
-- [ ] `public/voices.json` — list of voices: id, Bulgarian display name, gender, model URL, config URL, size in MB, licence, credit. Add Dimitar.
-- [ ] Voice download with progress percentage and caching (Cache API), plus a "Изтрий изтеглените гласове" (delete downloaded voices) option.
-- [ ] `src/text/normalize.ts` — Bulgarian text clean-up before speaking: remove extra whitespace and line breaks inside sentences, fix hyphenated line breaks from PDFs, expand common abbreviations (г., ул., т.е., напр., др., бул., гр., с.), and numbers/dates only if Phase 1 showed they are read badly. With tests.
-- [ ] `src/text/split.ts` — split long text into sentences/chunks of safe length, synthesise chunk by chunk, join the audio. With tests.
-- [ ] Audio export: WAV (always) and MP3 (choose a small browser MP3 encoder and ask Semir before adding it). Run MP3 encoding in the worker too.
-- [ ] Use the Screen Wake Lock API while generating (when supported) so phones don't sleep mid-chapter, and warn that leaving the tab may pause generation.
+- [x] `src/tts/worker.ts` — Web Worker that loads a voice and generates audio.
+- [x] `src/tts/engine.ts` — simple API for the rest of the app: `loadVoice(id, onProgress)`, `synthesize(text, { onProgress, signal })` returning audio, and cancelling.
+- [x] `public/voices.json` — list of voices: id, Bulgarian display name, gender, model URL, config URL, size in MB, licence, credit. Add Dimitar.
+- [x] Voice download with progress percentage and caching (Cache API), plus a "Изтрий изтеглените гласове" (delete downloaded voices) option.
+- [x] `src/text/normalize.ts` — Bulgarian text clean-up before speaking: remove extra whitespace and line breaks inside sentences, fix hyphenated line breaks from PDFs, expand common abbreviations (г., ул., т.е., напр., др., бул., гр., с.), and numbers/dates only if Phase 1 showed they are read badly. With tests.
+- [x] `src/text/split.ts` — split long text into sentences/chunks of safe length, synthesise chunk by chunk, join the audio. With tests.
+- [x] Audio export: WAV (always) and MP3 (choose a small browser MP3 encoder and ask Semir before adding it). Run MP3 encoding in the worker too.
+- [x] Use the Screen Wake Lock API while generating (when supported) so phones don't sleep mid-chapter, and warn that leaving the tab may pause generation.
 
 **Done when:** tests pass, and a 3-page text generates as one audio file with a working progress bar and cancel, without the page freezing.
 

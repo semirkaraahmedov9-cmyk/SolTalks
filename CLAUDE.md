@@ -32,6 +32,7 @@ Semir is a **beginner programmer** working on **Windows** in **VS Code**. Theref
 - **Speech generation runs in a Web Worker**, never on the main thread, so the page never freezes.
 - **Voice models are not committed to the repo.** They are downloaded from Hugging Face on first use and cached in the browser (Cache API). Show the user the download size and progress.
 - **No server, no database, no accounts, no analytics, no cookies, no third-party trackers.** Fonts are self-hosted (no Google Fonts requests).
+- **Everything is free, always.** No paid services, no paid APIs, no API keys, no subscriptions, no ads, nothing users pay for. Only free hosting (GitHub Pages, Hugging Face) and free, open-source libraries. If a step would ever cost money (e.g. renting a computer for voice training later), say so clearly and offer a free alternative first.
 - **Hosting:** GitHub Pages, deployed with a GitHub Actions workflow. Set Vite `base` correctly for the repo name.
 - **GitHub Pages cannot set COOP/COEP headers**, so `SharedArrayBuffer` / multithreaded WASM is not available by default. Use a single-threaded WASM build, or `coi-serviceworker` only if really needed (ask first).
 - **Language:** Bulgarian only for now. Still, put **every UI string in `src/i18n/bg.ts`** (no hard-coded Bulgarian text inside components) so other languages can be added later.

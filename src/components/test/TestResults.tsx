@@ -1,25 +1,20 @@
 import { t } from '../../i18n';
-import type { TtsResult } from '../../tts/useTtsWorker';
+import type { TestRun } from '../../pages/TestPage';
 
 const num = (value: number, digits = 1) => value.toLocaleString('bg-BG', { maximumFractionDigits: digits });
 const secs = (ms: number) => t.test.seconds(num(ms / 1000));
 
-/** The Phase 1 measurements, shown so Semir can report them from his phone. */
-export function TestResults({ result }: { result: TtsResult }) {
-  const { timings } = result;
-  const speed = result.audioSeconds / (timings.synthMs / 1000);
+/** Measurements, shown so Semir can report them from his phone. */
+export function TestResults({ run }: { run: TestRun }) {
+  const speed = run.durationSeconds / (run.synthMs / 1000);
 
   const rows: [string, string][] = [
-    [
-      t.test.voiceSize,
-      `${t.test.megabytes(num(result.voiceBytes / 1e6))}${result.voiceFromCache ? ` ${t.test.fromCache}` : ''}`,
-    ],
-    [t.test.downloadTime, secs(timings.downloadMs)],
-    [t.test.loadTime, secs(timings.loadMs)],
-    [t.test.synthTime, secs(timings.synthMs)],
-    [t.test.audioLength, t.test.seconds(num(result.audioSeconds))],
+    [t.test.audioLength, t.test.seconds(num(run.durationSeconds))],
+    [t.test.fileSize, t.test.megabytes(num(run.audio.byteLength / 1e6, 2))],
+    [t.test.synthTime, secs(run.synthMs)],
     [t.test.speed, t.test.speedValue(num(speed))],
-    [t.test.totalTime, secs(result.totalMs)],
+    [t.test.chunks, String(run.chunkCount)],
+    [t.test.totalTime, secs(run.totalMs)],
   ];
 
   return (
@@ -33,18 +28,6 @@ export function TestResults({ result }: { result: TtsResult }) {
           </div>
         ))}
       </dl>
-      <details>
-        <summary>{t.test.phonemesHeading}</summary>
-        {/* lang="und": IPA symbols, not Bulgarian words. */}
-        <ol lang="und" className="phonemes">
-          {result.phonemes.map((p, i) => (
-            <li key={i}>{p}</li>
-          ))}
-        </ol>
-        {result.missingPhonemes.length > 0 && (
-          <p>{t.test.missingPhonemes(result.missingPhonemes.join(' '))}</p>
-        )}
-      </details>
     </>
   );
 }

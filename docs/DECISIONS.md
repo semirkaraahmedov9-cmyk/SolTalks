@@ -63,6 +63,30 @@ Test text: the default sentence on `#/test` (12.7 s of audio).
 | Device | Voice download | Prepare voice | Generate speech | Speed | Click → sound (first / later) |
 |---|---|---|---|---|---|
 | Semir's PC (Edge, headless) | 6 s | 1.8 s | 2.8 s | 4.5× real time | 10.7 s / 2.7 s |
-| Semir's phone | _pending_ | | | | |
+| Semir's phone | Works on the live site (confirmed by Semir); numbers not recorded yet | | | | |
+
+### Phase 2: engine design
+- **Engine API** (`src/tts/engine.ts`): `loadVoice`, `synthesize(text, { voiceId, onProgress, signal })`, `isVoiceDownloaded`, `deleteDownloadedVoices`. Pages never talk to the worker directly.
+- **Text pipeline in the worker:** `normalizeText` (whitespace, PDF line breaks, abbreviations) → `splitText` (sentences, max 400 characters per piece, 0.6 s pause between paragraphs) → eSpeak in batches of 50 pieces → voice model piece by piece → one WAV file.
+- **Numbers:** left to eSpeak, because Phase 1 showed they are read correctly.
+- **Memory:** audio is kept as 16-bit pieces and written into the WAV file without joining first (half the memory of float audio).
+- **Cancel:** the worker checks for a cancel request between pieces, so stopping takes at most one piece (well under a second on PC).
+- **Screen Wake Lock** while generating; a notice asks the user to keep the page open.
+
+### MP3 encoder: `@breezystack/lamejs`
+- **Decision:** `@breezystack/lamejs` (LGPL-3.0), a maintained ES-module fork of `lamejs`, the JavaScript port of the LAME MP3 encoder. Approved by Semir.
+- **Settings:** mono, the voice's sample rate (22,050 Hz), 64 kbit/s, about 0.5 MB per minute.
+- **How:** in the worker, each spoken piece is compressed immediately (`src/tts/audioSink.ts`), so long chapters never sit in memory as uncompressed audio. MP3 is the default format; WAV stays available.
+- **Alternatives:** original `lamejs` (unmaintained, 6.5 MB package, broken as an ES module); `wasm-media-encoders` (WebAssembly LAME, MIT wrapper, older and larger).
+- **Result:** the 5-minute test text is 2.44 MB as MP3 versus 13.4 MB as WAV; encoding added about 5 s to 75 s of generation.
+
+### Large books: expectations
+A 400-page book is about 720,000 characters, which is about 12 hours of audio. At the measured speed that is about 3 hours on Semir's PC in the browser, and more on a phone. So:
+- Books are processed **chapter by chapter** (Phase 4), each chapter saved as its own MP3 as soon as it is ready.
+- Library audiobooks are generated in advance on a PC (Phase 5, optional `tools/build_library.py`).
+- **Idea to propose in Phase 4:** run 2–4 workers in parallel on devices with several CPU cores (each single-threaded, so no special headers needed) for a 2–4× speed-up; costs extra memory (one voice copy per worker), so fewer on phones.
+
+### Phase 2 measurements (PC, headless Edge)
+Long sample text, 5,224 characters (about 3 pages), 66 pieces: 305 s of audio created in 75 s (4.1× real time). The longest main-thread delay during generation was 16 ms (no freezing). Cancel took effect within 0.2 s. "Delete downloaded voices" removed the cache.
 
 Pronunciation notes: numbers are read correctly („дванадесет“, „триста четиридесет и пет“), „№“ → „номер“. Abbreviations are read literally („ул.“ → „ул“) and the full stop of an abbreviation is treated as a sentence end. Both are fixed in Phase 2 (`normalize.ts`, `split.ts`).

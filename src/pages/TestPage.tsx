@@ -1,38 +1,97 @@
-// Temporary Phase 1 page: proves the Bulgarian voice works and measures speed.
-import { useEffect, useMemo, useState } from 'react';
+// Temporary test page for the speech engine (Phases 1–2). The real
+// "Преобразувай" page replaces it in Phase 3.
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { t } from '../i18n';
 import { Page } from '../components/Page';
 import { SettingSlider } from '../components/test/SettingSlider';
 import { TestResults } from '../components/test/TestResults';
+import { EngineProgress, type ProgressState } from '../components/test/EngineProgress';
+import { normalizeText } from '../text/normalize';
+import {
+  deleteDownloadedVoices,
+  EngineError,
+  isVoiceDownloaded,
+  synthesize,
+  type AudioFormat,
+  type SynthesisOutput,
+} from '../tts/engine';
 import type { SynthesisSettings } from '../tts/piperConfig';
-import { useTtsWorker } from '../tts/useTtsWorker';
+import { getVoices, type VoiceInfo } from '../tts/voices';
 
 // Dimitar's defaults from its model card; the sliders start here.
 const DEFAULT_SETTINGS: SynthesisSettings = { noiseScale: 0.5, lengthScale: 1, noiseW: 0.333 };
+const LONG_TEXT = Array.from({ length: 6 }, () => t.test.sampleParagraphs.join('\n\n')).join('\n\n');
 
-const mb = (bytes: number) => (bytes / 1e6).toLocaleString('bg-BG', { maximumFractionDigits: 1 });
+export interface TestRun extends SynthesisOutput {
+  totalMs: number;
+  format: AudioFormat;
+}
+
+function errorMessage(error: unknown): string {
+  if (error instanceof EngineError) {
+    if (error.code === 'network') return t.engine.errorNetwork;
+    if (error.code === 'empty-text') return t.engine.errorEmpty;
+  }
+  return t.engine.errorUnknown;
+}
 
 export function TestPage() {
+  const [voice, setVoice] = useState<VoiceInfo | null>(null);
+  const [downloaded, setDownloaded] = useState(false);
   const [text, setText] = useState<string>(t.test.defaultText);
   const [settings, setSettings] = useState(DEFAULT_SETTINGS);
-  const { synthesize, progress, result, error, busy } = useTtsWorker();
+  const [format, setFormat] = useState<AudioFormat>('mp3');
+  const [progress, setProgress] = useState<ProgressState>({ stage: 'idle' });
+  const [run, setRun] = useState<TestRun | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
+
+  useEffect(() => {
+    getVoices()
+      .then(async ([first]) => {
+        setVoice(first);
+        setDownloaded(await isVoiceDownloaded(first.id));
+      })
+      .catch(() => setProgress({ stage: 'message', text: t.engine.errorNetwork }));
+  }, []);
 
   const audioUrl = useMemo(
-    () => (result ? URL.createObjectURL(new Blob([result.wav], { type: 'audio/wav' })) : null),
-    [result],
+    () => (run ? URL.createObjectURL(new Blob([run.audio], { type: run.mimeType })) : null),
+    [run],
   );
   useEffect(() => () => void (audioUrl && URL.revokeObjectURL(audioUrl)), [audioUrl]);
 
-  const status = (() => {
-    if (error) return t.test.statusError(error);
-    if (!busy) return result ? t.test.statusDone : '';
-    if (progress?.stage === 'download') {
-      const percent = Math.floor((progress.loaded / progress.total) * 100);
-      return t.test.statusDownloading(percent, mb(progress.loaded), mb(progress.total));
+  const busy = progress.stage === 'downloading' || progress.stage === 'generating';
+
+  async function speak() {
+    if (!voice) return;
+    const controller = new AbortController();
+    abortRef.current = controller;
+    const start = performance.now();
+    setRun(null);
+    setProgress({ stage: 'generating', fraction: 0 });
+    try {
+      const output = await synthesize(text, {
+        voiceId: voice.id,
+        format,
+        settings,
+        signal: controller.signal,
+        onDownloadProgress: ({ loaded, total }) => setProgress({ stage: 'downloading', fraction: loaded / total }),
+        onProgress: (fraction) => setProgress({ stage: 'generating', fraction }),
+      });
+      setRun({ ...output, totalMs: performance.now() - start, format });
+      setProgress({ stage: 'message', text: t.engine.done });
+      setDownloaded(true);
+    } catch (error) {
+      const cancelled = error instanceof DOMException && error.name === 'AbortError';
+      setProgress({ stage: 'message', text: cancelled ? t.engine.cancelled : errorMessage(error) });
     }
-    if (progress?.stage === 'synthesize') return t.test.statusSynthesizing;
-    return t.test.statusLoading;
-  })();
+  }
+
+  async function deleteVoices() {
+    await deleteDownloadedVoices();
+    setDownloaded(false);
+    setProgress({ stage: 'message', text: t.engine.voicesDeleted });
+  }
 
   const update = (key: keyof SynthesisSettings) => (value: number) =>
     setSettings((prev) => ({ ...prev, [key]: value }));
@@ -40,12 +99,27 @@ export function TestPage() {
   return (
     <Page title={t.test.title}>
       <p>{t.test.intro}</p>
-      <p>{t.test.downloadNote}</p>
+      {voice && (
+        <p>
+          {downloaded
+            ? t.engine.voiceDownloaded(voice.name)
+            : t.engine.voiceNotDownloaded(voice.name, voice.sizeMb.toLocaleString('bg-BG'))}
+        </p>
+      )}
 
       <div className="field">
         <label htmlFor="test-text">{t.test.textLabel}</label>
-        <textarea id="test-text" rows={5} value={text} onChange={(e) => setText(e.target.value)} />
+        <textarea id="test-text" rows={6} value={text} onChange={(e) => setText(e.target.value)} />
       </div>
+      <p>
+        <button type="button" className="btn btn--secondary" onClick={() => setText(LONG_TEXT)} disabled={busy}>
+          {t.test.longText}
+        </button>
+      </p>
+      <details className="field">
+        <summary>{t.test.normalizedHeading}</summary>
+        <p className="normalized">{normalizeText(text)}</p>
+      </details>
 
       <fieldset className="field">
         <legend>{t.test.settingsHeading}</legend>
@@ -60,30 +134,54 @@ export function TestPage() {
         </button>
       </fieldset>
 
-      <p>
-        <button
-          type="button"
-          className="btn btn--primary"
-          disabled={busy || !text.trim()}
-          onClick={() => synthesize({ type: 'synthesize', text, settings })}
-        >
-          {busy ? t.test.working : t.test.speak}
+      <fieldset className="field">
+        <legend>{t.test.formatLabel}</legend>
+        {(['mp3', 'wav'] as const).map((value) => (
+          <label key={value} className="choice">
+            <input
+              type="radio"
+              name="format"
+              value={value}
+              checked={format === value}
+              onChange={() => setFormat(value)}
+            />
+            {value === 'mp3' ? t.test.formatMp3 : t.test.formatWav}
+          </label>
+        ))}
+      </fieldset>
+
+      <div className="button-row">
+        <button type="button" className="btn btn--primary" disabled={busy || !voice || !text.trim()} onClick={speak}>
+          {t.test.speak}
         </button>
-      </p>
+        {busy && (
+          <button type="button" className="btn btn--secondary" onClick={() => abortRef.current?.abort()}>
+            {t.test.stop}
+          </button>
+        )}
+      </div>
 
-      {/* Screen readers announce progress and results from this region. */}
-      <p role="status" className="status">{status}</p>
+      <EngineProgress state={progress} />
+      {busy && <p className="notice">{t.engine.keepPageOpen}</p>}
 
-      {audioUrl && result && (
+      {audioUrl && run && (
         <>
           <h2>{t.test.playerLabel}</h2>
           <audio controls src={audioUrl} className="test-audio" />
           <p>
-            <a href={audioUrl} download="soltalks-test.wav">{t.test.downloadWav}</a>
+            <a href={audioUrl} download={`soltalks-test.${run.format}`}>
+              {t.test.downloadFile(run.format.toUpperCase())}
+            </a>
           </p>
-          <TestResults result={result} />
+          <TestResults run={run} />
         </>
       )}
+
+      <p>
+        <button type="button" className="btn btn--secondary" onClick={deleteVoices} disabled={busy}>
+          {t.engine.deleteVoices}
+        </button>
+      </p>
     </Page>
   );
 }
