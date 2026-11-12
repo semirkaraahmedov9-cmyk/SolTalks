@@ -1,0 +1,22 @@
+# Dependencies and build output (recreated by npm install / npm run build)
+node_modules/
+dist/
+coverage/
+
+# Secrets and local settings
+.env
+.env.*
+*.local
+
+# Voice models and large audio: downloaded at runtime, never committed
+*.onnx
+*.onnx.json
+*.wav
+*.mp3
+*.zip
+
+# Logs and system files
+*.log
+npm-debug.log*
+.DS_Store
+Thumbs.db

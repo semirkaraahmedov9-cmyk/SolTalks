@@ -1,0 +1,68 @@
+/* Home page hero: navy panel with a subtle pixel grid and sound-wave bars. */
+
+.hero {
+  position: relative;
+  overflow: hidden;
+  padding: var(--space-7) var(--space-5);
+  border-radius: var(--radius-card);
+  border: 3px solid var(--dark-border);
+  background-color: var(--dark-bg);
+  /* Faint 8-bit grid, decoration only. */
+  background-image:
+    linear-gradient(rgba(77, 163, 255, 0.08) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(77, 163, 255, 0.08) 1px, transparent 1px);
+  background-size: 16px 16px;
+  color: var(--dark-text);
+}
+
+:root[data-contrast='high'] .hero {
+  background-image: none;
+}
+
+.hero h1 {
+  font-size: 2.25rem;
+  max-width: 20ch;
+}
+
+.hero__intro {
+  font-size: 1.15rem;
+  color: var(--dark-text-muted);
+}
+
+.hero__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin-top: var(--space-5);
+}
+
+/* On navy, the secondary button is outlined in light blue. */
+.hero .btn--secondary {
+  background: transparent;
+  color: var(--dark-text);
+  border-color: var(--dark-accent);
+}
+
+.hero .btn--primary {
+  border-color: var(--dark-accent);
+}
+
+.pixel-wave {
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+  height: calc(9 * 6px);
+  margin-bottom: var(--space-5);
+}
+
+.pixel-wave__bar {
+  width: 10px;
+  height: calc(var(--h) * 6px);
+  background: var(--dark-accent);
+  /* Stepped edges make the bars read as pixel art rather than smooth lines. */
+  box-shadow: 0 0 8px rgba(77, 163, 255, 0.5);
+}
+
+:root[data-contrast='high'] .pixel-wave__bar {
+  box-shadow: none;
+}

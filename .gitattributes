@@ -1,0 +1,7 @@
+# Store all text files with LF line endings, whatever system contributors use.
+* text=auto eol=lf
+
+# Binary files: never touch.
+*.png binary
+*.jpg binary
+*.woff2 binary

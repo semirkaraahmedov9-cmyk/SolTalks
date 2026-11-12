@@ -1,0 +1,238 @@
+/* Page frame: container, header, navigation, display toggles, footer. */
+
+.container {
+  width: 100%;
+  max-width: 72rem;
+  margin: 0 auto;
+  padding: 0 var(--space-4); /* 16px gutter on phones */
+}
+
+.site-main {
+  flex: 1;
+  padding: var(--space-6) 0 var(--space-7);
+}
+
+/* ---------- Header ---------- */
+
+.site-header {
+  position: relative; /* anchor for the mobile menu panel */
+  background: var(--dark-bg);
+  color: var(--dark-text);
+  border-bottom: 3px solid var(--dark-border);
+}
+
+.site-header__bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding-top: var(--space-3);
+  padding-bottom: var(--space-3);
+}
+
+.brand {
+  /* Basis 0: the name wraps to two lines before the menu button moves down.
+     The longest word still sets a minimum width, so nothing ever overlaps;
+     with very large text the button simply wraps onto its own row. */
+  flex: 1 1 0;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: var(--touch-target);
+  color: inherit;
+  text-decoration: none;
+  font-weight: 700;
+  font-size: 1.1rem;
+  line-height: 1.2;
+}
+
+.brand__logo {
+  width: 3rem;
+  height: 3rem;
+  border-radius: 8px;
+  flex-shrink: 0;
+}
+
+/* ---------- Display toggles (top strip) ---------- */
+
+.display-toggles {
+  border-bottom: 1px solid rgba(201, 214, 242, 0.25);
+}
+
+.display-toggles__inner {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--space-1);
+  padding-top: var(--space-1);
+  padding-bottom: var(--space-1);
+}
+
+.toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 44px;
+  padding: var(--space-1) var(--space-2);
+  background: transparent;
+  color: var(--dark-text);
+  border: 2px solid transparent;
+  border-radius: var(--radius-button);
+  font: inherit;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.toggle:hover {
+  border-color: var(--dark-accent);
+}
+
+.toggle__box {
+  display: inline-grid;
+  place-items: center;
+  width: 1.25rem;
+  height: 1.25rem;
+  border: 2px solid currentColor;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.toggle[aria-pressed='true'] .toggle__box {
+  background: var(--dark-text);
+  color: var(--dark-bg);
+}
+
+/* ---------- Main navigation ---------- */
+
+.main-nav {
+  flex-shrink: 0;
+}
+
+.main-nav__toggle {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--touch-target);
+  padding: var(--space-2) var(--space-3);
+  background: transparent;
+  color: var(--dark-text);
+  border: 2px solid var(--dark-accent);
+  border-radius: var(--radius-button);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+/* Three-line "hamburger" icon drawn with borders. */
+.main-nav__icon {
+  width: 1.25rem;
+  height: 0.9rem;
+  border-top: 3px solid currentColor;
+  border-bottom: 3px solid currentColor;
+  background: linear-gradient(currentColor, currentColor) center / 100% 3px no-repeat;
+}
+
+.main-nav__list {
+  display: none;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+/* Phones: the open menu drops down as a full-width panel under the header. */
+.main-nav__list.is-open {
+  display: block;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 50;
+  padding: var(--space-2) var(--space-4) var(--space-4);
+  background: var(--dark-bg);
+  border-bottom: 3px solid var(--dark-accent);
+}
+
+.main-nav__link {
+  display: flex;
+  align-items: center;
+  min-height: var(--touch-target);
+  padding: var(--space-2) var(--space-3);
+  color: var(--dark-text);
+  text-decoration: none;
+  font-weight: 700;
+  border-radius: var(--radius-button);
+  border-bottom: 3px solid transparent;
+}
+
+.main-nav__link:hover {
+  text-decoration: underline;
+}
+
+/* Current page: underline bar plus bold, so it never relies on colour alone. */
+.main-nav__link[aria-current='page'] {
+  border-bottom-color: var(--dark-accent);
+  border-radius: var(--radius-button) var(--radius-button) 0 0;
+}
+
+@media (min-width: 60em) {
+  .main-nav__toggle {
+    display: none;
+  }
+
+  .main-nav__list,
+  .main-nav__list.is-open {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-1);
+    position: static;
+    padding: 0;
+    border: 0;
+    background: none;
+  }
+}
+
+/* ---------- Footer ---------- */
+
+.site-footer {
+  background: var(--dark-bg);
+  color: var(--dark-text);
+  border-top: 3px solid var(--dark-border);
+  padding: var(--space-6) 0;
+  font-size: 0.9rem;
+}
+
+.site-footer__privacy {
+  font-weight: 700;
+}
+
+.site-footer__funding {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-5);
+  align-items: flex-start;
+}
+
+.eu-badge {
+  background: #ffffff;
+  border-radius: 8px;
+  padding: var(--space-1);
+  width: 16rem;
+  max-width: 100%;
+  flex-shrink: 0;
+}
+
+.eu-badge img {
+  display: block;
+}
+
+.site-footer__texts {
+  flex: 1 1 20rem;
+}
+
+.site-footer__disclaimer {
+  color: var(--dark-text-muted);
+}
