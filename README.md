@@ -44,6 +44,8 @@ Contributions are welcome, especially from other European volunteers. Please kee
 
 ## Licence and credits
 
+Wrong word stress? Add the word to [pronunciation/bg-stress-fixes.txt](pronunciation/bg-stress-fixes.txt) (instructions are at the top of the file).
+
 Code: [MIT](LICENSE). Voices, fonts and other assets keep their own licences, listed in [docs/CREDITS.md](docs/CREDITS.md).
 
 Funded by the European Union through the European Solidarity Corps. Views and opinions expressed are however those of the author(s) only and do not necessarily reflect those of the European Union or the granting authority.

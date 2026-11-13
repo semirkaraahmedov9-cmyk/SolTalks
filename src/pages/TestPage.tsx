@@ -11,15 +11,23 @@ import {
   deleteDownloadedVoices,
   EngineError,
   isVoiceDownloaded,
+  previewSpokenText,
   synthesize,
   type AudioFormat,
   type SynthesisOutput,
 } from '../tts/engine';
+import { DEFAULT_COMMA_PAUSE_MS } from '../tts/pauses';
 import type { SynthesisSettings } from '../tts/piperConfig';
 import { getVoices, type VoiceInfo } from '../tts/voices';
 
-// Dimitar's defaults from its model card; the sliders start here.
-const DEFAULT_SETTINGS: SynthesisSettings = { noiseScale: 0.5, lengthScale: 1, noiseW: 0.333 };
+// Dimitar's defaults from its model card, plus our pronunciation helpers.
+const DEFAULT_SETTINGS: SynthesisSettings = {
+  noiseScale: 0.5,
+  lengthScale: 1,
+  noiseW: 0.333,
+  commaPauseMs: DEFAULT_COMMA_PAUSE_MS,
+  fixStress: true,
+};
 const LONG_TEXT = Array.from({ length: 6 }, () => t.test.sampleParagraphs.join('\n\n')).join('\n\n');
 
 export interface TestRun extends SynthesisOutput {
@@ -43,6 +51,7 @@ export function TestPage() {
   const [format, setFormat] = useState<AudioFormat>('mp3');
   const [progress, setProgress] = useState<ProgressState>({ stage: 'idle' });
   const [run, setRun] = useState<TestRun | null>(null);
+  const [spokenText, setSpokenText] = useState('');
   const abortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
@@ -53,6 +62,20 @@ export function TestPage() {
       })
       .catch(() => setProgress({ stage: 'message', text: t.engine.errorNetwork }));
   }, []);
+
+  // Show the text with stress marks; wait for a pause in typing first.
+  useEffect(() => {
+    let current = true;
+    const timer = setTimeout(() => {
+      previewSpokenText(text)
+        .then((spoken) => current && setSpokenText(spoken))
+        .catch(() => current && setSpokenText(normalizeText(text)));
+    }, 400);
+    return () => {
+      current = false;
+      clearTimeout(timer);
+    };
+  }, [text]);
 
   const audioUrl = useMemo(
     () => (run ? URL.createObjectURL(new Blob([run.audio], { type: run.mimeType })) : null),
@@ -93,7 +116,7 @@ export function TestPage() {
     setProgress({ stage: 'message', text: t.engine.voicesDeleted });
   }
 
-  const update = (key: keyof SynthesisSettings) => (value: number) =>
+  const update = (key: 'noiseScale' | 'lengthScale' | 'noiseW' | 'commaPauseMs') => (value: number) =>
     setSettings((prev) => ({ ...prev, [key]: value }));
 
   return (
@@ -118,7 +141,8 @@ export function TestPage() {
       </p>
       <details className="field">
         <summary>{t.test.normalizedHeading}</summary>
-        <p className="normalized">{normalizeText(text)}</p>
+        <p>{t.test.normalizedHelp}</p>
+        <p className="normalized">{spokenText}</p>
       </details>
 
       <fieldset className="field">
@@ -129,6 +153,16 @@ export function TestPage() {
           min={0.6} max={1.6} step={0.05} value={settings.lengthScale} onChange={update('lengthScale')} />
         <SettingSlider id="noise-w" label={t.test.noiseW} help={t.test.noiseWHelp}
           min={0} max={1} step={0.05} value={settings.noiseW} onChange={update('noiseW')} />
+        <SettingSlider id="comma-pause" label={t.test.commaPause} help={t.test.commaPauseHelp}
+          min={0} max={600} step={25} value={settings.commaPauseMs} onChange={update('commaPauseMs')} />
+        <label className="choice">
+          <input
+            type="checkbox"
+            checked={settings.fixStress}
+            onChange={(e) => setSettings((prev) => ({ ...prev, fixStress: e.target.checked }))}
+          />
+          {t.test.fixStress}
+        </label>
         <button type="button" className="btn btn--secondary" onClick={() => setSettings(DEFAULT_SETTINGS)}>
           {t.test.resetSettings}
         </button>

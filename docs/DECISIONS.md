@@ -90,3 +90,16 @@ A 400-page book is about 720,000 characters, which is about 12 hours of audio. A
 Long sample text, 5,224 characters (about 3 pages), 66 pieces: 305 s of audio created in 75 s (4.1× real time). The longest main-thread delay during generation was 16 ms (no freezing). Cancel took effect within 0.2 s. "Delete downloaded voices" removed the cache.
 
 Pronunciation notes: numbers are read correctly („дванадесет“, „триста четиридесет и пет“), „№“ → „номер“. Abbreviations are read literally („ул.“ → „ул“) and the full stop of an abbreviation is treated as a sentence end. Both are fixed in Phase 2 (`normalize.ts`, `split.ts`).
+
+### Bulgarian word stress: stress marks from a Wiktionary list
+- **Problem:** eSpeak often stresses Bulgarian words on the wrong vowel (книгѝте, знанѝето, чѐтат). On 1,500 random dictionary words, eSpeak alone was right only 35% of the time (many are rare forms; ordinary text is better).
+- **Finding:** eSpeak follows a combining grave accent (U+0300) written right after a vowel; it ignores the acute (U+0301). The precomposed letters ѝ / ѐ break the word, so they are split back into и/е + U+0300 (`splitGraveLetters`). Tested: with our marks eSpeak used the right vowel in 1,500 of 1,500 words.
+- **Decision:** before phonemizing, `src/text/stress.ts` adds the mark to each word with two or more vowels. Order: hand-written fixes (`pronunciation/bg-stress-fixes.txt`, "зарАди" notation) → the stress list → a guess from words with the same beginning (хора → хората; only when all similar words agree and their stress lies in the shared part) → otherwise eSpeak decides. Words with two possible stresses (па̀ра / пара̀) are kept in the list without a position, so they are never guessed.
+- **Data:** 183,020 word forms (24,371 with two possible stresses) from the kaikki.org extraction of Wiktionary, CC BY-SA 4.0, 0.56 MB gzipped. Built by `tools/build-stress-list.mjs`; imported with `?url` so the file name has a hash and browsers never keep an old copy. Unpacked in the worker with `DecompressionStream`.
+- **Measurements:** the guess, tested by hiding 5,000 known words, answered for 95% of them and was right 98.7% of the time. On the test page's sample text, 89 of 112 multi-syllable words get a mark (after the first fixes); eSpeak reads the remaining ones correctly by itself.
+- **Alternatives:** stressonnx `bul/vocab.gz` (accurate, but only 46,914 words); bayganyu/bulgarian-dictionary (base forms only, unclear licence); a neural stress model (more download, harder to fix by hand).
+
+### Pauses at commas
+- **Problem:** Dimitar makes almost no pause at a comma, and the model gives no timing output we could stretch.
+- **Decision:** like Piper's own `phoneme_silence` option, each sentence is split after the "," ";" ":" phonemes (eSpeak turns "–" into ";"), each part is spoken separately and silence is added: `commaPauseMs` after a comma, 1.5× after ; : and dashes (`src/tts/pauses.ts`). `commaPauseMs = 0` keeps the old behaviour. Default **150 ms**, chosen by Semir after listening to 150 / 250 / 400 ms samples.
+- **Cost:** none measurable: the 63-second sample took about 19 s either way.

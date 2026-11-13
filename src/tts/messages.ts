@@ -14,6 +14,8 @@ export type WorkerRequest =
       format: AudioFormat;
       settings?: SynthesisSettings;
     }
+  /** Returns the text as it will be spoken (cleaned up, with stress marks). */
+  | { type: 'preview'; id: number; language: string; text: string }
   | { type: 'cancel'; id: number }
   /** Forget loaded voices (after the user deleted downloaded voices). */
   | { type: 'unload'; id: number };
@@ -34,6 +36,7 @@ export type WorkerResponse =
   | { type: 'loaded'; id: number; fromCache: boolean }
   | { type: 'synthProgress'; id: number; fraction: number }
   | ({ type: 'done'; id: number } & SynthesisOutput)
+  | { type: 'previewed'; id: number; text: string }
   | { type: 'unloaded'; id: number }
   | { type: 'cancelled'; id: number }
   | { type: 'error'; id: number; code: EngineErrorCode; message: string };

@@ -10,6 +10,13 @@ The source code of this project is under the [MIT licence](../LICENSE). Everythi
 
 The voice file is not stored in this repository. Visitors' browsers download it from Hugging Face.
 
+## Pronunciation data
+
+| Data | Source | Licence |
+|---|---|---|
+| Bulgarian stress list (`pronunciation/bg-stress-list.txt.gz`) | Made from [Wiktionary](https://en.wiktionary.org) by our script `tools/build-stress-list.mjs`, using the [kaikki.org](https://kaikki.org/dictionary/Bulgarian/) extraction (wiktextract, Tatu Ylonen) | **CC BY-SA 4.0** — the list is shared under the same licence |
+| Stress fixes (`pronunciation/bg-stress-fixes.txt`) | Written by the project team | CC BY-SA 4.0 |
+
 ## Fonts
 
 | Font | Author | Licence | Source |

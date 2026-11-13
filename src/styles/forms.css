@@ -150,3 +150,8 @@ textarea {
   font-family: var(--font-body);
   word-break: break-word;
 }
+
+/* Breathing room between a checkbox row and a button right after it. */
+.choice + .btn {
+  margin-top: var(--space-3);
+}

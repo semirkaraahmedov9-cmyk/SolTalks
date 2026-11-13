@@ -55,6 +55,21 @@ Goal: a clean, reusable module that turns text into audio without freezing the p
 
 ---
 
+## Phase 2b — Better Bulgarian pronunciation (added after Semir's feedback)
+
+Goal: correct word stress and real pauses at commas, before building the real UI.
+
+- [x] Stress list from Wiktionary (`tools/build-stress-list.mjs` → `pronunciation/bg-stress-list.txt.gz`, CC BY-SA 4.0).
+- [x] `src/text/stress.ts` — add a stress mark after the stressed vowel before eSpeak reads the text; guess unknown forms from similar words; leave words with two possible stresses to eSpeak. With tests.
+- [x] Hand-written fixes file `pronunciation/bg-stress-fixes.txt` (always wins); a test checks it for typos.
+- [x] Pauses at commas (`src/tts/pauses.ts`): speak the sentence in parts and add silence after , ; : and dashes. With tests.
+- [x] Test page: comma-pause slider, stress on/off switch, preview of the text with stress marks.
+- [x] Semir listens to the samples, picks the comma pause (150 ms), and checks the fixes file.
+
+**Done when:** Semir hears clearly better stress and natural comma pauses, and knows how to add a fix.
+
+---
+
 ## Phase 3 — "Преобразувай": paste text → audio
 
 Goal: the first real feature, polished and accessible.

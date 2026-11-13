@@ -128,6 +128,21 @@ export async function synthesize(text: string, options: SynthesizeOptions): Prom
   }
 }
 
+/**
+ * The text as the voice will read it: cleaned up, abbreviations written out,
+ * and stress marks on the vowels we know. Lets people check pronunciation.
+ */
+export async function previewSpokenText(text: string, language = 'bg'): Promise<string> {
+  return new Promise((resolve, reject) => {
+    send({ type: 'preview', id: nextId++, language, text }, (message) => {
+      if (message.type === 'previewed') resolve(message.text);
+      else if (message.type === 'error') reject(new EngineError(message.code, message.message));
+      else return false;
+      return true;
+    });
+  });
+}
+
 export async function isVoiceDownloaded(voiceId: string): Promise<boolean> {
   try {
     const voice = await getVoice(voiceId);

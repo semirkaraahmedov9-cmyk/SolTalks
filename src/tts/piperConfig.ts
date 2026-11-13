@@ -1,3 +1,5 @@
+import { DEFAULT_COMMA_PAUSE_MS } from './pauses';
+
 // The parts of a Piper voice config (<voice>.onnx.json) that we use.
 export interface PiperVoiceConfig {
   audio: { sample_rate: number };
@@ -9,14 +11,19 @@ export interface PiperVoiceConfig {
   vowel_clusters?: string[][];
 }
 
-/** Settings that change how the voice sounds (Piper's "scales"). */
+/** Settings that change how the voice sounds. */
 export interface SynthesisSettings {
+  // Piper's three "scales":
   /** Voice variation; lower = flatter but steadier. */
   noiseScale: number;
   /** Duration; above 1 = slower speech, below 1 = faster. */
   lengthScale: number;
   /** Rhythm variation between phonemes. */
   noiseW: number;
+  /** Extra silence after a comma, in ms (0 = only the voice's own tiny pause). */
+  commaPauseMs: number;
+  /** Mark the stressed vowels from our stress list before eSpeak reads the text. */
+  fixStress: boolean;
 }
 
 export function defaultSettings(config: PiperVoiceConfig): SynthesisSettings {
@@ -24,5 +31,7 @@ export function defaultSettings(config: PiperVoiceConfig): SynthesisSettings {
     noiseScale: config.inference.noise_scale,
     lengthScale: config.inference.length_scale,
     noiseW: config.inference.noise_w,
+    commaPauseMs: DEFAULT_COMMA_PAUSE_MS,
+    fixStress: true,
   };
 }

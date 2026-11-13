@@ -24,4 +24,11 @@ Short notes at the end of each work session: what was done, what is next, open p
 - Open: big books take hours in the browser; handled chapter by chapter (Phase 4) and with PC pre-generation for the library (Phase 5). Parallel workers to propose in Phase 4.
 - Semir's feedback: all tests work. Voice samples: no clear favourite; the real problems are **wrong word stress** and **too-short pauses at commas**. Defaults stay at Dimitar's own settings (version A).
 - Research done: eSpeak's Bulgarian stress is often wrong (книгите, знанието, учебниците, новините, зрение, четат…). A combining grave accent (U+0300) after the vowel makes eSpeak stress it correctly (the acute U+0301 is ignored; precomposed ѝ breaks the word). A stress list built from Wiktionary (kaikki.org, CC BY-SA 4.0) has 183,499 forms in 0.56 MB and covered 69 of 101 words in a test text. Dimitar has no alignment output, so comma pauses must be added by us.
-- Proposed to Semir (waiting for approval): a stress + comma-pause step before Phase 3.
+- Proposed to Semir: a stress + comma-pause step before Phase 3. Approved.
+
+### Session 3 — Phase 2b (better pronunciation)
+- Done: stress list from Wiktionary (183,020 forms), stress marks before eSpeak, guessing of unknown forms, hand-written fixes file with a typo test, comma pauses, test-page controls and preview. 72 tests pass, build passes.
+- Measured: eSpeak alone 35% right on random dictionary words; with our marks it follows them 100%. Sample text: 89 of 112 words marked.
+- Semir's choices: comma pause 150 ms; confirmed дислѐксия and гласа̀ and added гласъ̀т himself.
+- Next: Phase 3 (the real "Преобразувай" page).
+- Note: run Vitest from PowerShell; Git Bash's lowercase "c:" path breaks it.

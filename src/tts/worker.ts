@@ -3,13 +3,16 @@
 import * as ort from 'onnxruntime-web/wasm';
 import ortWasmUrl from 'onnxruntime-web/ort-wasm-simd-threaded.wasm?url';
 import { normalizeText } from '../text/normalize';
-import { splitText } from '../text/split';
+import { splitText, type TextChunk } from '../text/split';
+import { addStressMarks } from '../text/stress';
 import { createAudioSink, MIME_TYPES, type AudioFormat } from './audioSink';
 import { downloadWithCache, NetworkError } from './download';
 import type { EngineErrorCode, WorkerRequest, WorkerResponse } from './messages';
+import { splitAtPauses } from './pauses';
 import { initPhonemizer, phonemizeSentences } from './phonemizer';
 import { mergeVowelClusters, phonemesToIds } from './phonemeIds';
 import { defaultSettings, type PiperVoiceConfig, type SynthesisSettings } from './piperConfig';
+import { loadStressLexicon } from './stressData';
 import type { VoiceInfo } from './voices';
 import { floatToInt16, normalizePeak, silence } from './wav';
 
@@ -48,15 +51,13 @@ async function loadVoice(voice: VoiceInfo, requestId: number): Promise<LoadedVoi
     downloadWithCache(voice.configUrl, 0),
   ]);
 
+  const voiceConfig = JSON.parse(new TextDecoder().decode(config.data)) as PiperVoiceConfig;
   const [session] = await Promise.all([
     ort.InferenceSession.create(new Uint8Array(model.data), { executionProviders: ['wasm'] }),
     initPhonemizer(),
+    loadStressLexicon(voiceConfig.espeak.voice),
   ]);
-  return {
-    session,
-    config: JSON.parse(new TextDecoder().decode(config.data)) as PiperVoiceConfig,
-    fromCache: model.fromCache,
-  };
+  return { session, config: voiceConfig, fromCache: model.fromCache };
 }
 
 function getVoice(voice: VoiceInfo, requestId: number): Promise<LoadedVoice> {
@@ -94,6 +95,13 @@ async function speakPhonemes(voice: LoadedVoice, phonemes: string[], settings: S
   return floatToInt16(normalizePeak(output[session.outputNames[0]].data as Float32Array));
 }
 
+/** Adds stress marks to every piece (if wanted and we have data for the language). */
+async function withStressMarks(chunks: TextChunk[], language: string, fixStress: boolean): Promise<TextChunk[]> {
+  const lexicon = fixStress ? await loadStressLexicon(language) : undefined;
+  if (!lexicon) return chunks;
+  return chunks.map((chunk) => ({ ...chunk, text: addStressMarks(chunk.text, lexicon) }));
+}
+
 async function synthesize(
   requestId: number,
   info: VoiceInfo,
@@ -101,11 +109,12 @@ async function synthesize(
   format: AudioFormat,
   settings?: SynthesisSettings,
 ) {
-  const chunks = splitText(normalizeText(text));
-  if (chunks.length === 0) throw new EmptyTextError('No text to speak');
+  const plainChunks = splitText(normalizeText(text));
+  if (plainChunks.length === 0) throw new EmptyTextError('No text to speak');
 
   const voice = await getVoice(info, requestId);
   const scales = settings ?? defaultSettings(voice.config);
+  const chunks = await withStressMarks(plainChunks, voice.config.espeak.voice, scales.fixStress);
   const sampleRate = voice.config.audio.sample_rate;
   const totalChars = chunks.reduce((sum, c) => sum + c.text.length, 0);
 
@@ -121,7 +130,10 @@ async function synthesize(
       await yieldToMessages();
       if (cancelled.has(requestId)) throw new CancelledError();
 
-      if (phonemized[i].length > 0) sink.add(await speakPhonemes(voice, phonemized[i], scales));
+      for (const part of splitAtPauses(phonemized[i], scales.commaPauseMs)) {
+        if (part.phonemes.length > 0) sink.add(await speakPhonemes(voice, part.phonemes, scales));
+        if (part.pauseAfterMs > 0) sink.add(silence(part.pauseAfterMs, sampleRate));
+      }
       if (batch[i].pauseAfterMs > 0) sink.add(silence(batch[i].pauseAfterMs, sampleRate));
 
       doneChars += batch[i].text.length;
@@ -163,6 +175,12 @@ self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
       case 'synthesize':
         await synthesize(request.id, request.voice, request.text, request.format, request.settings);
         break;
+      case 'preview': {
+        const chunks = await withStressMarks(splitText(normalizeText(request.text)), request.language, true);
+        const text = chunks.map((c) => c.text + (c.pauseAfterMs > 0 ? '\n\n' : ' ')).join('').trim();
+        post({ type: 'previewed', id: request.id, text });
+        break;
+      }
       case 'cancel':
         cancelled.add(request.id);
         break;
